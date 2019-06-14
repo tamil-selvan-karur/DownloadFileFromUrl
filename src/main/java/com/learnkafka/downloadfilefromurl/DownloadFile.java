@@ -40,13 +40,45 @@ public class DownloadFile {
         JSONArray arrayOfVideoData = new JSONArray(arrayString);
         JSONArray newIdsArray = getNewVideoIds(arrayOfVideoData);
         existingIdsArray = getExistingVideoIds();
+        JSONObject existingCompleteData = readExistingCompleteData();
+        System.out.println("Existing complete json data" + existingCompleteData);
+        boolean writeCompleteDataToFileStatus = writeExistingCompleteData(response);
+        System.out.println("Status of the writeCompleteDataToFile = " + writeCompleteDataToFileStatus);
 //        System.out.println("Existing ids " + existingIdsArray);
 //        System.out.println("New ids " + newIdsArray);
-        refreshVideoAndList(newIdsArray, existingIdsArray, arrayOfVideoData);
+        refreshVideoAndList(newIdsArray, existingIdsArray, arrayOfVideoData, existingCompleteData);
 
     }
 
-    private static void refreshVideoAndList(JSONArray newIdsArray, JSONArray existingIdsArray, JSONArray videoArray) {
+    private static JSONObject readExistingCompleteData() throws IOException {
+        JSONObject returnData = new JSONObject();
+        try (FileReader reader = new FileReader(LANDING_PATH + "/json/existing-data-complete.json")) {
+            String fileContent = "";
+            int i = 0;
+            while ((i = reader.read()) != -1) {
+                fileContent += ((char) i);
+            }
+            reader.close();
+            returnData = new JSONObject(fileContent);
+        } catch (FileNotFoundException e) {
+            System.out.println("JSON file not found at the specified location");
+        } catch (IOException e) {
+            System.out.println("Problem reading existing complete data JSON file");
+        }
+        return returnData;
+    }
+
+    private static boolean writeExistingCompleteData(String data) {
+        try (FileWriter file = new FileWriter(LANDING_PATH + "/json/existing-data-complete.json")) {
+            file.write(data);
+            file.flush();
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private static void refreshVideoAndList(JSONArray newIdsArray, JSONArray existingIdsArray, JSONArray videoArray, JSONObject oldJsonDataInStorage) {
         ArrayList<Integer> nl = new ArrayList<>();
         ArrayList<Integer> el = new ArrayList<>();
         for (int i = 0; i < newIdsArray.length(); i++) {
@@ -63,7 +95,7 @@ public class DownloadFile {
             downloadVideo(i, videoArray);
         }
         for (int i : el) {
-            deleteVideo(i);
+            deleteVideo(i, oldJsonDataInStorage);
         }
     }
 
@@ -79,7 +111,7 @@ public class DownloadFile {
 
     private static JSONArray getExistingVideoIds() throws IOException {
         JSONArray existingIdsArray = new JSONArray();
-        try (FileReader reader = new FileReader(LANDING_PATH + "ids.json")) {
+        try (FileReader reader = new FileReader(LANDING_PATH + "/json/ids.json")) {
             String fileContent = "";
             int i = 0;
             while ((i = reader.read()) != -1) {
@@ -89,7 +121,7 @@ public class DownloadFile {
             existingIdsArray = new JSONArray(fileContent);
         } catch (FileNotFoundException e) {
             System.out.println("JSON file not found at the specified location");
-            FileWriter file = new FileWriter(LANDING_PATH + "ids.json");
+            FileWriter file = new FileWriter(LANDING_PATH + "/json/ids.json");
             file.write("[]");
             file.flush();
             String args[] = {};
@@ -101,7 +133,7 @@ public class DownloadFile {
     }
 
     private static boolean writeIdsToFile(String data) {
-        try (FileWriter file = new FileWriter(LANDING_PATH + "ids.json")) {
+        try (FileWriter file = new FileWriter(LANDING_PATH + "/json/ids.json")) {
             file.write(data);
             file.flush();
             return true;
@@ -162,7 +194,7 @@ public class DownloadFile {
         }
     }
 
-    private static void deleteVideo(int video_id) {
+    private static void deleteVideo(int video_id, JSONObject data) {
         System.out.println("Want to delete the video " + video_id);
         ArrayList<Integer> temp = new ArrayList<>();
         for (int i = 0; i < existingIdsArray.length(); i++) {
@@ -174,7 +206,13 @@ public class DownloadFile {
             existingIdsArray.put(temp.get(i));
         }
         writeIdsToFile(existingIdsArray.toString());
-        deleteVideo(video_id, "mp4");
+        JSONArray oldVideosArray = new JSONArray(data.get("videos").toString());
+        for (int i = 0; i < oldVideosArray.length(); i++) {
+            JSONObject currentObject = new JSONObject(oldVideosArray.get(i).toString());
+            if (video_id == (int) currentObject.get("video_id")) {
+                deleteVideo(video_id, (String) currentObject.get("video_type"));
+            }
+        }
     }
 
     private static void deleteVideo(int video_id, String file_type) {
