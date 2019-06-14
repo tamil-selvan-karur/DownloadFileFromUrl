@@ -63,7 +63,7 @@ public class DownloadFile {
             downloadVideo(i, videoArray);
         }
         for (int i : el) {
-            deleteVideo(i, videoArray);
+            deleteVideo(i);
         }
     }
 
@@ -162,7 +162,7 @@ public class DownloadFile {
         }
     }
 
-    private static void deleteVideo(int video_id, JSONArray data) {
+    private static void deleteVideo(int video_id) {
         System.out.println("Want to delete the video " + video_id);
         ArrayList<Integer> temp = new ArrayList<>();
         for (int i = 0; i < existingIdsArray.length(); i++) {
@@ -174,13 +174,7 @@ public class DownloadFile {
             existingIdsArray.put(temp.get(i));
         }
         writeIdsToFile(existingIdsArray.toString());
-        for (int i = 0; i < data.length(); i++) {
-            JSONObject currentObject = new JSONObject(data.get(i).toString());
-            System.out.println("Current object " + currentObject);
-            if ((int) currentObject.get("video_id") == video_id) {
-                System.out.println("Found an matching Object to delete " + currentObject);
-            }
-        }
+        deleteVideo(video_id, "mp4");
     }
 
     private static void deleteVideo(int video_id, String file_type) {
